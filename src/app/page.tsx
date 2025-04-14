@@ -1,103 +1,222 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useSession, signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { CoffeeEntry } from '@/types';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [coffeeEntries, setCoffeeEntries] = useState<CoffeeEntry[]>([]);
+  const [selectedType, setSelectedType] = useState('black');
+  const [selectedSource, setSelectedSource] = useState('homemade');
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login');
+    }
+  }, [status, router]);
+
+  // Load coffee entries from localStorage on component mount
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.id) {
+      const savedEntries = localStorage.getItem('coffeeEntries');
+      if (savedEntries) {
+        const allEntries: CoffeeEntry[] = JSON.parse(savedEntries);
+        // Filter entries to only show the current user's
+        const userEntries = allEntries.filter(entry => entry.userId === session.user.id);
+        setCoffeeEntries(userEntries);
+      }
+    }
+  }, [status, session]);
+
+  // Update localStorage when entries change
+  useEffect(() => {
+    if (status === 'authenticated' && coffeeEntries.length > 0) {
+      const savedEntries = localStorage.getItem('coffeeEntries');
+      let allEntries: CoffeeEntry[] = [];
+      
+      if (savedEntries) {
+        allEntries = JSON.parse(savedEntries);
+        // Remove current user's entries
+        allEntries = allEntries.filter(entry => entry.userId !== session?.user?.id);
+      }
+      
+      // Add updated entries
+      allEntries = [...allEntries, ...coffeeEntries];
+      localStorage.setItem('coffeeEntries', JSON.stringify(allEntries));
+    }
+  }, [coffeeEntries, status, session]);
+
+  const addCoffee = () => {
+    if (!session?.user?.id) return;
+    
+    const newEntry: CoffeeEntry = {
+      type: selectedType,
+      source: selectedSource,
+      timestamp: Date.now(),
+      userId: session.user.id
+    };
+    setCoffeeEntries(prevEntries => [...prevEntries, newEntry]);
+  };
+
+  // Count coffee types
+  const coffeeTypeCounts = coffeeEntries.reduce((counts: Record<string, number>, entry) => {
+    counts[entry.type] = (counts[entry.type] || 0) + 1;
+    return counts;
+  }, {});
+
+  // Count coffee sources
+  const coffeeSourceCounts = coffeeEntries.reduce((counts: Record<string, number>, entry) => {
+    counts[entry.source] = (counts[entry.source] || 0) + 1;
+    return counts;
+  }, {});
+
+  const coffeeTypes = ['black', 'latte', 'flat white', 'cappuccino', 'espresso'];
+  const coffeeSources = ['homemade', 'costa', 'starbucks', 'nero', 'other'];
+
+  if (status === 'loading') {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-24">
+        <div className="text-center">
+          <p className="text-xl">Loading...</p>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+    );
+  }
+
+  if (status === 'unauthenticated') {
+    return null; // Will redirect to login
+  }
+
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center p-24">
+      <div className="z-10 max-w-5xl w-full items-center justify-center font-mono text-sm flex flex-col">
+        <div className="w-full flex items-center mb-8 relative">
+          <div className="absolute left-0">
+            <button
+              onClick={() => signOut({ callbackUrl: '/login' })}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md transition-colors duration-200"
+            >
+              Sign Out
+            </button>
+          </div>
+          <h1 className="text-4xl font-bold mx-auto">Coffee Tracker</h1>
+          <div className="absolute right-0">
+            <Link 
+              href="/history" 
+              className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-200"
+            >
+              View History
+            </Link>
+          </div>
+        </div>
+        
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md flex flex-col items-center">
+          <div className="mb-4 text-center">
+            <p className="text-lg">Welcome, <span className="font-semibold">{session?.user?.name || 'User'}</span>!</p>
+          </div>
+          
+          <div className="mb-6">
+            <Image 
+              src="/coffee-clipart-39.jpg" 
+              alt="Coffee Cup" 
+              width={120} 
+              height={120}
+              className="mb-4 rounded-md"
+            />
+          </div>
+          
+          <div className="mb-8 text-center">
+            <p className="text-xl mb-2">You've had</p>
+            <p className="text-6xl font-bold text-amber-700">{coffeeEntries.length}</p>
+            <p className="text-xl mt-2">coffees</p>
+            
+            {coffeeEntries.length > 0 && (
+              <div className="mt-4">
+                <button
+                  onClick={() => setShowBreakdown(!showBreakdown)}
+                  className="text-amber-600 hover:text-amber-700 font-medium text-sm underline mt-2"
+                >
+                  {showBreakdown ? 'Hide Breakdown' : 'Show Breakdown'}
+                </button>
+                
+                {showBreakdown && (
+                  <div className="mt-4 text-left">
+                    <div className="mb-4">
+                      <p className="text-lg font-medium mb-2">By Type:</p>
+                      <ul className="list-disc pl-5">
+                        {Object.entries(coffeeTypeCounts).map(([type, count]) => (
+                          <li key={type} className="text-md">
+                            {type}: {count}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    
+                    <div>
+                      <p className="text-lg font-medium mb-2">By Source:</p>
+                      <ul className="list-disc pl-5">
+                        {Object.entries(coffeeSourceCounts).map(([source, count]) => (
+                          <li key={source} className="text-md">
+                            {source}: {count}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div className="flex flex-col w-full max-w-xs gap-3 mb-4">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="coffee-type" className="text-sm text-gray-600 dark:text-gray-300">Coffee Type:</label>
+              <select
+                id="coffee-type"
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value)}
+                className="bg-white border border-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-md py-2 px-3 text-gray-700 dark:text-gray-200 focus:outline-none"
+              >
+                {coffeeTypes.map(type => (
+                  <option key={type} value={type}>
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="flex flex-col gap-1">
+              <label htmlFor="coffee-source" className="text-sm text-gray-600 dark:text-gray-300">Coffee Source:</label>
+              <select
+                id="coffee-source"
+                value={selectedSource}
+                onChange={(e) => setSelectedSource(e.target.value)}
+                className="bg-white border border-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-md py-2 px-3 text-gray-700 dark:text-gray-200 focus:outline-none"
+              >
+                {coffeeSources.map(source => (
+                  <option key={source} value={source}>
+                    {source.charAt(0).toUpperCase() + source.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <button
+              onClick={addCoffee}
+              className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-6 rounded-md text-md transition-colors duration-200 mt-2"
+            >
+              Add Coffee
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
   );
 }
