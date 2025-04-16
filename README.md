@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This website has been built using Cursor, from prompts totally so far with little or no intervation from the developer other than adding prompts which are listed below, this repo is inspired by James Montemagno and his youtube video on copilot agent mode [Live Coding with Github Copilot](https://www.youtube.com/watch?v=XT_m3nua72E)
+This website has been built using Cursor, from prompts totally so far with little or no intervation from the developer other than adding prompts which are listed below, this repo is inspired by [James Montemagno](montemagno.com) and his youtube video on copilot agent mode [Live Coding with Github Copilot](https://www.youtube.com/watch?v=XT_m3nua72E)
 
 ## Prompts given
 
